@@ -1,0 +1,114 @@
+services:
+  app:
+    build: .
+    env_file: .env
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      mongo:
+        condition: service_started
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    environment:
+      TZ: ${TZ:-Europe/Moscow}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_DB: ${MYSQL_DB}
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      RABBIT_HOST: rabbitmq
+      RABBIT_USER: ${RABBITMQ_DEFAULT_USER:-admin}
+      RABBIT_PASSWORD: ${RABBITMQ_DEFAULT_PASS:-admin}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      MONGO_HOST: mongo
+      MONGO_PORT: 27017
+      CBR_DAILY_URL: ${CBR_DAILY_URL:-https://www.cbr-xml-daily.ru/daily_json.js}
+
+  worker:
+    build: .
+    env_file: .env
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    command: ["python", "-m", "app.workers.rabbit_worker"]
+    volumes:
+      - .:/app
+    environment:
+      TZ: ${TZ:-Europe/Moscow}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_DB: ${MYSQL_DB}
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      RABBIT_HOST: rabbitmq
+      RABBIT_USER: ${RABBITMQ_DEFAULT_USER:-admin}
+      RABBIT_PASSWORD: ${RABBITMQ_DEFAULT_PASS:-admin}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      MONGO_HOST: mongo
+      MONGO_PORT: 27017
+      CBR_DAILY_URL: ${CBR_DAILY_URL:-https://www.cbr-xml-daily.ru/daily_json.js}
+
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_CHARSET: utf8mb4
+      MYSQL_COLLATION: utf8mb4_unicode_ci
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DB}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      # ИНИТ-скрипты: кладём SQL в ./docker/mysql-init/*.sql
+      - ./docker/mysql-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$MYSQL_ROOT_PASSWORD || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+
+  mongo:
+    image: mongo:6
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-admin}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-admin}
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  mysql_data:
+  mongo_data:

@@ -1,0 +1,14 @@
+redis
+aio_pika
+fastapi
+fastapi-filter
+fastapi-pagination[sqlalchemy]
+uvicorn[standard]
+sqlalchemy
+aiomysql
+pydantic
+motor
+pydantic-settings
+cryptography
+httpx
+tzdata
