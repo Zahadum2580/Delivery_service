@@ -1,8 +1,9 @@
-from typing import AsyncGenerator
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import sessionmaker
-from app.core.config import settings
+from typing import AsyncGenerator, Callable
 
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import sessionmaker
+
+from app.core.config import settings
 
 DATABASE_URL = (
     f"mysql+aiomysql://{settings.MYSQL_USER}:{settings.MYSQL_PASSWORD}"
@@ -11,11 +12,13 @@ DATABASE_URL = (
 
 engine = create_async_engine(DATABASE_URL, echo=True, future=True)
 
-async_session = sessionmaker(
-    engine,
+async_session: Callable[[], AsyncSession] = sessionmaker(
+    bind=engine,
+    class_=AsyncSession,
     expire_on_commit=False,
-    class_=AsyncSession
-)
+    autoflush=False,
+)  # type: ignore[arg-type, call-overload]
+
 
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
     async with async_session() as session:

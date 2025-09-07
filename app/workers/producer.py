@@ -1,13 +1,17 @@
-import aio_pika
 import logging
 from typing import Optional
+
+import aio_pika
 
 from app.core.config import settings
 from app.schemas.packages import PackageIn
 
 logger = logging.getLogger(__name__)
 
-RABBITMQ_URL = f"amqp://{settings.RABBIT_USER}:{settings.RABBIT_PASSWORD}@{settings.RABBIT_HOST}:5672/"
+RABBITMQ_URL = (
+    f"amqp://{settings.RABBIT_USER}:{settings.RABBIT_PASSWORD}@"
+    f"{settings.RABBIT_HOST}:5672/"
+)
 QUEUE_NAME = "packages_queue"
 
 
@@ -31,20 +35,23 @@ class Producer:
             await self.connection.close()
             logger.info("Disconnected from RabbitMQ")
 
-    async def send_package_to_queue(self, package: PackageIn):
+    async def send_package_to_queue(self, package: PackageIn) -> None:
         """Отправка посылки в очередь"""
-        if self.connection is None or self.connection.is_closed:
+        if not self.connection or self.connection.is_closed:
             await self.connect()
 
-        message = aio_pika.Message(
-            body=package.model_dump_json().encode("utf-8"),
-            delivery_mode=aio_pika.DeliveryMode.PERSISTENT
-        )
+        channel = self.channel
+        if channel is None:
+            raise RuntimeError("Channel is not initialized after connection")
 
-        await self.channel.default_exchange.publish(
-            message,
+        await channel.default_exchange.publish(
+            aio_pika.Message(
+                body=package.model_dump_json().encode(),
+                delivery_mode=aio_pika.DeliveryMode.PERSISTENT,
+            ),
             routing_key=self.queue_name,
         )
+
         logger.info(f"Package sent to queue: session_id={package.session_id}")
 
 

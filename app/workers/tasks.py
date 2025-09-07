@@ -1,12 +1,14 @@
 import asyncio
-import httpx
 import logging
 import traceback
 from typing import Optional
-from app.db.redis import redis_client
+
+import httpx
+from sqlalchemy import select
+
 from app.core.config import settings
 from app.db.mysql import async_session
-from sqlalchemy import select
+from app.db.redis import redis_client
 from app.models.types import Type
 
 logger = logging.getLogger(__name__)
@@ -29,7 +31,11 @@ async def get_usd_to_rub_rate() -> Optional[float]:
     try:
         cached = await redis_client.get(CBR_CACHE_KEY)
         if cached is not None:
-            value = cached.decode() if isinstance(cached, (bytes, bytearray)) else str(cached)
+            value = (
+                cached.decode()
+                if isinstance(cached, (bytes, bytearray))
+                else str(cached)
+            )
             return float(value.replace(",", "."))
     except Exception as e:
         logger.warning("Redis GET failed for USD_RUB: %s", e)
@@ -43,7 +49,11 @@ async def get_usd_to_rub_rate() -> Optional[float]:
             try:
                 cached = await redis_client.get(CBR_CACHE_KEY)
                 if cached:
-                    value = cached.decode() if isinstance(cached, (bytes, bytearray)) else str(cached)
+                    value = (
+                        cached.decode()
+                        if isinstance(cached, (bytes, bytearray))
+                        else str(cached)
+                    )
                     return float(value.replace(",", "."))
             except Exception as e:
                 logger.error("Redis GET after wait failed: %s", e)
@@ -78,7 +88,9 @@ async def get_usd_to_rub_rate() -> Optional[float]:
             logger.warning("Failed to release Redis lock: %s", e)
 
 
-async def calculate_delivery_cost(weight_kg: float, content_value_usd: float) -> Optional[float]:
+async def calculate_delivery_cost(
+    weight_kg: float, content_value_usd: float
+) -> Optional[float]:
     """Обёртка calculate_delivery_cost с получением курса ЦБ РФ"""
     try:
         rate = await get_usd_to_rub_rate()
@@ -108,20 +120,29 @@ async def get_type_name(type_id: Optional[int]) -> str:
     """Возвращает name по type_id через Redis, если не найдено — default"""
     if type_id is None:
         type_id = DEFAULT_TYPE_ID
-    name = await redis_client.hget(TYPE_CACHE_KEY, type_id)
+
+    field = str(type_id)  # Redis всегда принимает str|bytes
+    name = await redis_client.hget(TYPE_CACHE_KEY, field)
+
     if not name:
         await load_type_cache()
-        name = await redis_client.hget(TYPE_CACHE_KEY, type_id)
+        name = await redis_client.hget(TYPE_CACHE_KEY, field)
         if not name:
             return DEFAULT_TYPE_NAME
+
     if isinstance(name, (bytes, bytearray)):
         name = name.decode()
+
     return name
 
 
 async def validate_type_id(type_id: Optional[int]) -> int:
     """Проверяет существование type_id через Redis"""
+    if type_id is None:
+        return DEFAULT_TYPE_ID
+
     name = await get_type_name(type_id)
     if name == DEFAULT_TYPE_NAME:
         return DEFAULT_TYPE_ID
+
     return type_id

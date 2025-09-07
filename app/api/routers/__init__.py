@@ -1,1 +1,1 @@
-from . import packages_router, types_router # noqa: F401
+from . import packages_router  # noqa: F401

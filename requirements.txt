@@ -1,3 +1,4 @@
+aioredis
 redis
 aio_pika
 fastapi
@@ -12,3 +13,4 @@ pydantic-settings
 cryptography
 httpx
 tzdata
+types-redis

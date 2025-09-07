@@ -1,5 +1,6 @@
-import httpx
 import aioredis
+import httpx
+
 from app.core.config import settings
 
 CACHE_KEY = "cbr_usd_rub"

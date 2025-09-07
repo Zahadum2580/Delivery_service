@@ -1,7 +1,9 @@
 from datetime import datetime
-from decimal import Decimal, ROUND_HALF_EVEN
-from pydantic import NonNegativeFloat
+from decimal import ROUND_HALF_EVEN, Decimal
 from zoneinfo import ZoneInfo
+
+from pydantic import NonNegativeFloat
+
 from app.core.config import settings
 
 

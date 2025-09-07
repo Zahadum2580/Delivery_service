@@ -1,4 +1,5 @@
 from typing import Optional
+
 from pydantic_settings import BaseSettings
 
 
@@ -9,10 +10,10 @@ class Settings(BaseSettings):
     TZ: str = "Europe/Moscow"
 
     # MySQL
-    MYSQL_DB: str
-    MYSQL_USER: str
-    MYSQL_PASSWORD: str
-    MYSQL_ROOT_PASSWORD: str
+    MYSQL_DB: str = "mydb"
+    MYSQL_USER: str = "myuser"
+    MYSQL_PASSWORD: str = "mypassword"
+    MYSQL_ROOT_PASSWORD: str = "root"
     MYSQL_HOST: str = "mysql"
     MYSQL_PORT: int = 3306
 
@@ -26,13 +27,12 @@ class Settings(BaseSettings):
     # Redis
     REDIS_HOST: str = "redis"
     REDIS_PORT: int = 6379
-    REDIS_URL: Optional[str] = None  # можно задать целиком, иначе будет fallback
 
     # Mongo
     MONGO_HOST: str = "mongo"
     MONGO_PORT: int = 27017
 
-    # внешние API
+    # внешние AP
     CBR_DAILY_URL: str = "https://www.cbr-xml-daily.ru/daily_json.js"
 
     # ----- computed values -----
@@ -56,14 +56,15 @@ class Settings(BaseSettings):
         if self.REDIS_URL:
             return self.REDIS_URL
         return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/0"
-    
+
     @property
     def MONGO_URL(self) -> str:
         return f"mongodb://{self.MONGO_HOST}:{self.MONGO_PORT}"
 
     class Config:
         env_file = ".env"
-        extra = "ignore"          # игнорируем лишние переменные окружения (удобно для compose)
-        case_sensitive = False    # нестрогое сравнение имен переменных (по умолчанию обычно верхний регистр в .env)
+        extra = "ignore"
+        case_sensitive = False
+
 
 settings = Settings()

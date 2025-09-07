@@ -1,8 +1,10 @@
 import enum
 from datetime import datetime
 from typing import Optional
-from pydantic import BaseModel, NonNegativeFloat, Field, field_validator
+
 from fastapi_filter.contrib.sqlalchemy import Filter
+from pydantic import BaseModel, Field, NonNegativeFloat, field_validator
+
 from app.core.utils import msk_now, round_2, round_3
 from app.models.packages import Package
 
@@ -14,15 +16,25 @@ class PackageType(enum.IntEnum):
 
 
 class PackageBase(BaseModel):
-    name: str = Field(..., description="Название посылки", example="Ноутбук")
+    name: str = Field(
+        ...,
+        description="Название посылки",
+        json_schema_extra={"example": "Ноутбук"},
+    )
     weight_kg: NonNegativeFloat = Field(
-        ..., description="Вес в кг (округляется до 3 знаков)", example=1.234
+        ...,
+        description="Вес в кг (округляется до 3 знаков)",
+        json_schema_extra={"example": 1.234},
     )
     content_value_usd: NonNegativeFloat = Field(
-        ..., description="Стоимость содержимого в USD (округляется до 2 знаков)", example=123.45
+        ...,
+        description="Стоимость содержимого в USD (округляется до 2 знаков)",
+        json_schema_extra={"example": 123.45},
     )
-    type_id: PackageType = Field(
-        ..., description="ID типа посылки: 1=одежда, 2=электроника, 3=разное", example=2
+    type_id: int = Field(
+        ...,
+        description="ID типа посылки: 1=одежда, 2=электроника, 3=разное",
+        json_schema_extra={"example": 2},
     )
 
     @field_validator("weight_kg", mode="before")
@@ -38,14 +50,26 @@ class PackageBase(BaseModel):
 
 class PackageIn(PackageBase):
     session_id: Optional[str] = Field(
-        None, description="ID пользовательской сессии", example="550e8400-e29b-41d4-a716-446655440000"
+        None,
+        description="ID пользовательской сессии",
+        json_schema_extra={"example": "550e8400-e29b-41d4-a716-446655440000"},
     )
 
 
 class PackageAdvanced(PackageIn):
-    type_name: Optional[str] = Field(None, description="Название типа посылки", example="электроника")
-    delivery_cost_rub: Optional[NonNegativeFloat] = Field(None, description="Стоимость доставки в рублях", example=1234.56)
-    created_at: Optional[datetime] = Field(default_factory=msk_now, description="Московское время регистрации посылки")
+    type_name: Optional[str] = Field(
+        None,
+        description="Название типа посылки",
+        json_schema_extra={"example": "электроника"},
+    )
+    delivery_cost_rub: Optional[NonNegativeFloat] = Field(
+        None,
+        description="Стоимость доставки в рублях",
+        json_schema_extra={"example": 1234.56},
+    )
+    created_at: Optional[datetime] = Field(
+        default_factory=msk_now, description="Московское время регистрации посылки"
+    )
     updated_at: Optional[datetime] = None
 
     @field_validator("delivery_cost_rub", mode="before")
@@ -60,7 +84,9 @@ class PackageAdvanced(PackageIn):
 
 
 class PackageOut(PackageAdvanced):
-    id: int = Field(..., description="Уникальный ID посылки", example=1)
+    id: int = Field(
+        ..., description="Уникальный ID посылки", json_schema_extra={"example": 1}
+    )
 
 
 class PackagesFilter(Filter):
@@ -70,10 +96,14 @@ class PackagesFilter(Filter):
     """
 
     type_id: Optional[PackageType] = Field(
-        None, description="ID типа посылки: 1=одежда, 2=электроника, 3=разное", example=2
+        None,
+        description="ID типа посылки: 1=одежда, 2=электроника, 3=разное",
+        json_schema_extra={"example": 2},
     )
     delivery_cost_rub__isnull: Optional[bool] = Field(
-        None, description="Фильтр по наличию стоимости доставки (True/False)", example=True
+        None,
+        description="Фильтр по наличию стоимости доставки (True/False)",
+        json_schema_extra={"example": True},
     )
 
     class Constants(Filter.Constants):
@@ -81,6 +111,18 @@ class PackagesFilter(Filter):
 
 
 class DeliveryStatsOut(BaseModel):
-    type_id: int
-    type_name: str
-    total_delivery_cost: float
+    type_id: int = Field(
+        ...,
+        description="ID типа посылки: 1=одежда, 2=электроника, 3=разное",
+        json_schema_extra={"example": 2},
+    )
+    type_name: str = Field(
+        ...,
+        description="Название типа посылки",
+        json_schema_extra={"example": "электроника"},
+    )
+    total_delivery_cost: float = Field(
+        ...,
+        description="Общая стоимость доставки",
+        json_schema_extra={"example": 1234.56},
+    )

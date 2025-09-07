@@ -1,6 +1,8 @@
-from sqlalchemy import Column, Integer, String, Numeric, ForeignKey, DateTime, func
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, Numeric, String, func
 from sqlalchemy.orm import relationship
+
 from app.models.base import Base
+
 
 class Package(Base):
     __tablename__ = "packages"
@@ -14,7 +16,14 @@ class Package(Base):
     type_name = Column(String(50), nullable=False)
     delivery_cost_rub = Column(Numeric(10, 2), nullable=True)
 
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
 
     type = relationship("Type", back_populates="packages")

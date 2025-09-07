@@ -1,11 +1,12 @@
 import logging
 import time
-from fastapi import Request
+
+from fastapi import HTTPException, Request
 from fastapi.responses import JSONResponse
-from fastapi import HTTPException
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 logger = logging.getLogger(__name__)
+
 
 class LoggingMiddleware:
     def __init__(self, app: ASGIApp):
@@ -20,7 +21,9 @@ class LoggingMiddleware:
         start_time = time.time()
 
         # Пропускаем Swagger/OpenAPI
-        if request.url.path.startswith(("/docs", "/openapi.json", "/redoc", "/swagger")):
+        if request.url.path.startswith(
+            ("/docs", "/openapi.json", "/redoc", "/swagger")
+        ):
             await self.app(scope, receive, send)
             return
 
@@ -38,7 +41,7 @@ class LoggingMiddleware:
             logger.warning("HTTP error %s: %s", he.status_code, he.detail)
             response = JSONResponse(
                 status_code=he.status_code,
-                content={"error": "HTTPException", "details": he.detail}
+                content={"error": "HTTPException", "details": he.detail},
             )
             await response(scope, receive, send)
             response_status = he.status_code
@@ -46,7 +49,7 @@ class LoggingMiddleware:
             logger.exception("Unexpected error: %s", e)
             response = JSONResponse(
                 status_code=500,
-                content={"error": "InternalServerError", "details": str(e)}
+                content={"error": "InternalServerError", "details": str(e)},
             )
             await response(scope, receive, send)
             response_status = 500

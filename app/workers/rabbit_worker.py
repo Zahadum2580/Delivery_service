@@ -1,19 +1,24 @@
 import asyncio
 import json
 import traceback
-from typing import List, Dict, Any
+from typing import Any, Dict, List
 
 import aio_pika
 from aio_pika import IncomingMessage
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.db.mysql import async_session
-from app.db.mongo import MongoService, get_mongo_service
-from app.models.packages import Package
-from app.core.config import settings
-from app.schemas.packages import PackageAdvanced
-from app.workers.tasks import calculate_delivery_cost, validate_type_id, get_type_name
 
-RABBITMQ_URL = f"amqp://{settings.RABBIT_USER}:{settings.RABBIT_PASSWORD}@{settings.RABBIT_HOST}:5672/"
+from app.core.config import settings
+from app.db.mongo import MongoService, get_mongo_service
+from app.db.mysql import async_session
+from app.models.packages import Package
+from app.schemas.packages import PackageAdvanced
+from app.workers.tasks import calculate_delivery_cost, get_type_name, validate_type_id
+
+RABBITMQ_URL = (
+    f"amqp://{settings.RABBIT_USER}:{settings.RABBIT_PASSWORD}@"
+    f"{settings.RABBIT_HOST}:5672/"
+)
+
 QUEUE_NAME = "packages_queue"
 
 # ------------------- Буферы -------------------
@@ -33,6 +38,7 @@ mongo_buffer_lock = asyncio.Lock()
 # MongoService — будет инициализирован в main()
 mongo_service: MongoService | None = None
 
+
 # ------------------- Обработка сообщений -------------------
 async def process_package_message(message: IncomingMessage):
     try:
@@ -47,8 +53,7 @@ async def process_package_message(message: IncomingMessage):
 
             # Рассчитываем delivery_cost
             delivery_cost = await calculate_delivery_cost(
-                payload.get("weight_kg", 0),
-                payload.get("content_value_usd", 0)
+                payload.get("weight_kg", 0), payload.get("content_value_usd", 0)
             )
             payload["delivery_cost_rub"] = delivery_cost
 
@@ -87,7 +92,7 @@ async def flush_mysql_buffer_locked():
                         type_id=p.type_id,
                         type_name=p.type_name,
                         session_id=p.session_id,
-                        delivery_cost_rub=p.delivery_cost_rub
+                        delivery_cost_rub=p.delivery_cost_rub,
                     )
                     for p in message_buffer
                 ]
@@ -98,7 +103,7 @@ async def flush_mysql_buffer_locked():
                 return
         except Exception as e:
             retries += 1
-            wait_time = 2 ** retries
+            wait_time = 2**retries
             print(f"MySQL flush error (attempt {retries}/{MAX_RETRIES}): {e}")
             traceback.print_exc()
             await asyncio.sleep(wait_time)
