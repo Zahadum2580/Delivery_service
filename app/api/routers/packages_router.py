@@ -27,7 +27,7 @@ from app.workers.producer import Producer, get_producer
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-# --- вынесенные зависимости на уровень модуля ---
+
 get_session_dep = Depends(get_or_create_session_id)
 get_producer_dep = Depends(get_producer)
 get_async_session_dep = Depends(get_async_session)
@@ -43,11 +43,9 @@ async def register_package(
     producer: Producer = get_producer_dep,
 ):
     """
-    Регистрируем посылку:
-    - получаем session_id через dependency
-    - валидируем как PackageIn
-    - отправляем в RabbitMQ асинхронно в фоне
-    - возвращаем ответ и при необходимости ставим cookie
+    Регистрация посылки.
+
+    package: данные посылки
     """
     package_data: dict[str, Any] = package.model_dump()
     package_data["session_id"] = session_id
@@ -55,17 +53,18 @@ async def register_package(
     async def send_package_background(data: dict[str, Any]):
         try:
             await producer.send_package_to_queue(PackageIn(**data))
-            logger.info(f"Package sent to queue: session_id={data['session_id']}")
+            logger.info(
+                f"Посылка отправлена в очередь: session_id={data['session_id']}"
+            )
         except Exception:
             logger.exception(
-                f"Error sending package to queue: session_id={data['session_id']}"
+                f"Ошибка отправки посылки в очередь: session_id={data['session_id']}"
             )
 
-    # Запускаем отправку в RabbitMQ в фоне, чтобы не блокировать Swagger/OpenAPI
     asyncio.create_task(send_package_background(package_data))
 
     response = JSONResponse(
-        content={"message": "Package registered", "session_id": session_id}
+        content={"message": "Посылка зарегистрирована", "session_id": session_id}
     )
 
     # Ставим cookie только если это новая сессия
@@ -74,9 +73,9 @@ async def register_package(
             key="session_id",
             value=session_id,
             httponly=True,
-            max_age=60 * 60 * 24 * 30,  # 30 дней
+            max_age=60 * 60 * 24 * 30,
             samesite="lax",
-            # secure=True,  # включить в продакшене
+            secure=False,  # True если используем HTTPS
         )
 
     return response
@@ -86,7 +85,9 @@ async def register_package(
 async def get_package_types(
     db: AsyncSession = get_async_session_dep,
 ) -> Dict[str, List[Dict[str, Any]]]:
-    """Получаем список типов посылок"""
+    """
+    Получение типов посылок.
+    """
     stmt = select(Type.id, Type.name).order_by(Type.id.asc())
     result = await db.execute(stmt)
     types = [{"id": row.id, "name": row.name} for row in result.all()]
@@ -100,7 +101,9 @@ async def get_my_packages(
     db: AsyncSession = get_async_session_dep,
 ) -> Page[PackageOut]:
     """
-    Получаем список посылок для текущей сессии с возможностью фильтрации и пагинации.
+    Получение посылок для текущей сессии.
+
+    filters: фильтры для поиска посылок
     """
     stmt = select(Package).filter(Package.session_id == session_id)
     stmt = filters.filter(stmt)
@@ -112,13 +115,17 @@ async def get_package_by_id(
     package_id: int,
     db: AsyncSession = get_async_session_dep,
 ) -> PackageOut:
-    """Получаем посылку по ID, только если она принадлежит текущей сессии"""
+    """
+    Получение сведений о посылке.
+
+    package_id: ID посылки
+    """
     stmt = select(Package).filter(Package.id == package_id)
     result = await db.execute(stmt)
     package = result.scalar_one_or_none()
 
     if not package:
-        raise HTTPException(status_code=404, detail="Package not found")
+        raise HTTPException(status_code=404, detail="Посылка не найдена")
 
     return package
 
@@ -128,4 +135,9 @@ async def get_delivery_stats(
     date: str | None = None,
     mongo: MongoService = get_mongo_service_dep,
 ) -> List[DeliveryStatsOut]:
+    """
+    Получение статистики по доставкам за день.
+
+    date: дата в формате `ДД_ММ_ГГГГ` (опционально, например `03_09_2025`).
+    """
     return await mongo.get_delivery_stats(date)

@@ -18,4 +18,5 @@ def round_2(v: NonNegativeFloat) -> NonNegativeFloat:
 
 
 def msk_now() -> datetime:
+    """Текущее время в часовом поясе Москвы."""
     return datetime.now(tz=ZoneInfo(settings.TZ))

@@ -27,13 +27,14 @@ class MongoService:
         asyncio.create_task(self._init_today_indexes())
 
     async def _init_today_indexes(self):
-        """Создаёт индексы для сегодняшней коллекции при старте приложения"""
+        """Создаёт индексы для сегодняшней коллекции при старте приложения."""
         collection = await self.get_daily_collection()
         await self.ensure_indexes_for_daily_collection(collection)
 
     async def ensure_indexes_for_daily_collection(
         self, collection: AsyncIOMotorCollection[Dict[str, Any]]
     ) -> None:
+        """Создаёт индексы для коллекции, если они ещё не созданы."""
         if collection.name in self._indexes_created:
             return
         try:
@@ -45,7 +46,7 @@ class MongoService:
             traceback.print_exc()
 
     def _cleanup_cache(self):
-        """Удаляет коллекции из кэша старше MAX_CACHE_DAYS"""
+        """Удаляет коллекции из кэша старше MAX_CACHE_DAYS: 7 дней."""
         cutoff_date = msk_now() - timedelta(days=self.MAX_CACHE_DAYS)
         cutoff_str = cutoff_date.strftime("%d_%m_%Y")
         keys_to_remove = [
@@ -58,6 +59,7 @@ class MongoService:
     async def get_daily_collection(
         self, date: str | None = None
     ) -> AsyncIOMotorCollection[Dict[str, Any]]:
+        """Возвращает коллекцию для указанной даты (формат "DD_MM_YYYY")."""
         if not date:
             date = msk_now().strftime("%d_%m_%Y")
 
@@ -75,6 +77,7 @@ class MongoService:
         return collection
 
     async def save_package(self, package: PackageAdvanced) -> None:
+        """Сохраняет данные о посылке в коллекцию за текущий день."""
         try:
             doc: Dict[str, Any] = package.model_dump()
             collection = await self.get_daily_collection()
@@ -86,6 +89,7 @@ class MongoService:
     async def get_delivery_stats(
         self, date: str | None = None
     ) -> List[DeliveryStatsOut]:
+        """Возвращает статистику по стоимости доставки за указанный день."""
         collection = await self.get_daily_collection(date)
         pipeline: Sequence[Mapping[str, Any]] = [
             {"$match": {"delivery_cost_rub": {"$ne": None}}},

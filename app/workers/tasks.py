@@ -13,21 +13,21 @@ from app.models.types import Type
 
 logger = logging.getLogger(__name__)
 
-# --- USD_RUB ---
-CBR_CACHE_KEY = "cbr:usd_rub"
-CBR_CACHE_TTL = 3600  # 1 час
-CBR_LOCK_KEY = "cbr:usd_rub:lock"
-CBR_LOCK_TTL = 10  # секунд
 
-# --- Package types ---
+CBR_CACHE_KEY = "cbr:usd_rub"
+CBR_CACHE_TTL = 3600
+CBR_LOCK_KEY = "cbr:usd_rub:lock"
+CBR_LOCK_TTL = 10
+
+
 TYPE_CACHE_KEY = "package_types"
-TYPE_CACHE_TTL = 3600  # 1 час
+TYPE_CACHE_TTL = 3600
 DEFAULT_TYPE_ID = 3
 DEFAULT_TYPE_NAME = "разное"
 
 
-# --- USD_RUB functions ---
 async def get_usd_to_rub_rate() -> Optional[float]:
+    """Получает курс USD_RUB из Redis или ЦБ РФ."""
     try:
         cached = await redis_client.get(CBR_CACHE_KEY)
         if cached is not None:
@@ -42,7 +42,7 @@ async def get_usd_to_rub_rate() -> Optional[float]:
 
     got_lock = await redis_client.set(CBR_LOCK_KEY, "1", ex=CBR_LOCK_TTL, nx=True)
     if not got_lock:
-        logger.info("Another worker is fetching USD_RUB, waiting for cache...")
+        logger.info("Waiting for existing lock on CBR fetch...")
         delay = 0.5
         for _ in range(5):
             await asyncio.sleep(delay)
@@ -69,7 +69,7 @@ async def get_usd_to_rub_rate() -> Optional[float]:
             data = resp.json()
             raw = data.get("Valute", {}).get("USD", {}).get("Value")
             if raw is None:
-                logger.error("USD rate not found in CBR response")
+                logger.error("Курс USD не найден в ответе ЦБ РФ")
                 return None
 
             rate = float(str(raw).replace(",", "."))
@@ -102,7 +102,6 @@ async def calculate_delivery_cost(
         return None
 
 
-# --- Package types functions ---
 async def load_type_cache():
     """Загружает типы посылок из MySQL в Redis"""
     async with async_session() as session:

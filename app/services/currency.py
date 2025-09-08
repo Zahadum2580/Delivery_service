@@ -4,7 +4,7 @@ import httpx
 from app.core.config import settings
 
 CACHE_KEY = "cbr_usd_rub"
-CACHE_TTL = 60 * 60  # 1 час
+CACHE_TTL = 3600
 
 
 class CurrencyService:
@@ -16,12 +16,12 @@ class CurrencyService:
         Возвращает курс USD->RUB.
         Если не удалось получить курс из кэша и с ЦБ — возвращает None.
         """
-        # Попробуем получить из кэша
+        # Попробуем получить из кэша:
         cached = await self.redis.get(CACHE_KEY)
         if cached:
             return float(cached)
 
-        # Попробуем получить с ЦБ
+        # Попробуем получить с ЦБ:
         try:
             async with httpx.AsyncClient() as client:
                 resp = await client.get(settings.CBR_DAILY_URL, timeout=10.0)
@@ -29,9 +29,9 @@ class CurrencyService:
                 data = resp.json()
                 usd_rate = data["Valute"]["USD"]["Value"]
         except Exception:
-            usd_rate = None  # не удалось получить
+            usd_rate = None  # если не удалось получить
 
-        # Сохраняем в Redis, если есть
+        # Сохраняем в Redis, если есть:
         if usd_rate is not None:
             await self.redis.set(CACHE_KEY, usd_rate, ex=CACHE_TTL)
 

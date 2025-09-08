@@ -21,7 +21,7 @@ RABBITMQ_URL = (
 
 QUEUE_NAME = "packages_queue"
 
-# ------------------- Буферы -------------------
+
 # MySQL
 MYSQL_BUFFER_SIZE = 10
 MYSQL_BUFFER_TIMEOUT = 2
@@ -39,8 +39,13 @@ mongo_buffer_lock = asyncio.Lock()
 mongo_service: MongoService | None = None
 
 
-# ------------------- Обработка сообщений -------------------
 async def process_package_message(message: IncomingMessage):
+    """
+    Обрабатывает сообщение из RabbitMQ.
+    Валидирует, рассчитывает стоимость доставки,
+    сохраняет в буферы для MySQL и MongoDB.
+    """
+
     try:
         async with message.process():
             payload: Dict[str, Any] = json.loads(message.body)
@@ -74,8 +79,8 @@ async def process_package_message(message: IncomingMessage):
         traceback.print_exc()
 
 
-# ------------------- MySQL -------------------
 async def flush_mysql_buffer_locked():
+    """Флашит буфер MySQL в базу данных с ретраями."""
     if not message_buffer:
         return
 
@@ -112,15 +117,16 @@ async def flush_mysql_buffer_locked():
 
 
 async def periodic_mysql_flush():
+    """Периодически флашит буфер MySQL по таймауту."""
+
     while True:
         await asyncio.sleep(MYSQL_BUFFER_TIMEOUT)
         async with buffer_lock:
             await flush_mysql_buffer_locked()
 
 
-# ------------------- Mongo -------------------
 async def save_package_batch(package: PackageAdvanced):
-    """Добавляет пакет в буфер Mongo и триггерит батчевую запись"""
+    """Добавляет пакет в буфер Mongo и триггерит батчевую запись."""
     async with mongo_buffer_lock:
         mongo_buffer.append(package)
         if len(mongo_buffer) >= MONGO_BUFFER_SIZE:
@@ -128,6 +134,7 @@ async def save_package_batch(package: PackageAdvanced):
 
 
 async def flush_mongo_buffer_locked():
+    """Флашит буфер MongoDB в базу данных."""
     if not mongo_buffer or mongo_service is None:
         return
 
@@ -148,14 +155,15 @@ async def flush_mongo_buffer_locked():
 
 
 async def periodic_mongo_flush():
+    """Периодически флашит буфер Mongo по таймауту."""
     while True:
         await asyncio.sleep(MONGO_BUFFER_TIMEOUT)
         async with mongo_buffer_lock:
             await flush_mongo_buffer_locked()
 
 
-# ------------------- Main -------------------
 async def main():
+    """Основная функция воркера."""
     global mongo_service
     mongo_service = await get_mongo_service()
 
@@ -165,7 +173,7 @@ async def main():
 
     queue = await channel.declare_queue(QUEUE_NAME, durable=True)
     await queue.consume(process_package_message)
-    print(f"[*] Worker listening on queue '{QUEUE_NAME}'...")
+    print(f"Worker listening on queue '{QUEUE_NAME}'...")
 
     # Запускаем периодические флашеры для буферов MySQL и Mongo
     asyncio.create_task(periodic_mysql_flush())

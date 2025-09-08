@@ -22,21 +22,21 @@ class Producer:
         self.queue_name: str = QUEUE_NAME
 
     async def connect(self):
-        """Подключение к RabbitMQ и создание канала"""
+        """Подключение к RabbitMQ и создание канала."""
         if self.connection is None or self.connection.is_closed:
             self.connection = await aio_pika.connect_robust(RABBITMQ_URL)
             self.channel = await self.connection.channel()
             await self.channel.declare_queue(self.queue_name, durable=True)
-            logger.info("Connected to RabbitMQ and declared queue")
+            logger.info("Connected to RabbitMQ")
 
     async def disconnect(self):
-        """Закрытие соединения"""
+        """Закрытие соединения."""
         if self.connection and not self.connection.is_closed:
             await self.connection.close()
             logger.info("Disconnected from RabbitMQ")
 
     async def send_package_to_queue(self, package: PackageIn) -> None:
-        """Отправка посылки в очередь"""
+        """Отправка посылки в очередь."""
         if not self.connection or self.connection.is_closed:
             await self.connect()
 
@@ -52,7 +52,7 @@ class Producer:
             routing_key=self.queue_name,
         )
 
-        logger.info(f"Package sent to queue: session_id={package.session_id}")
+        logger.info(f"Посылка отправлена в очередь: session_id={package.session_id}")
 
 
 async def get_producer() -> Producer:

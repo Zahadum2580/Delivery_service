@@ -16,6 +16,10 @@ class PackageType(enum.IntEnum):
 
 
 class PackageBase(BaseModel):
+    """
+    Базовая схема посылки с валидацией и описаниями полей.
+    """
+
     name: str = Field(
         ...,
         description="Название посылки",
@@ -49,6 +53,10 @@ class PackageBase(BaseModel):
 
 
 class PackageIn(PackageBase):
+    """
+    Схема для создания посылки.
+    """
+
     session_id: Optional[str] = Field(
         None,
         description="ID пользовательской сессии",
@@ -57,6 +65,10 @@ class PackageIn(PackageBase):
 
 
 class PackageAdvanced(PackageIn):
+    """
+    Расширенная схема посылки с дополнительными полями.
+    """
+
     type_name: Optional[str] = Field(
         None,
         description="Название типа посылки",
@@ -84,6 +96,10 @@ class PackageAdvanced(PackageIn):
 
 
 class PackageOut(PackageAdvanced):
+    """
+    Схема для ответа API с полным набором полей посылки.
+    """
+
     id: int = Field(
         ..., description="Уникальный ID посылки", json_schema_extra={"example": 1}
     )
@@ -92,7 +108,6 @@ class PackageOut(PackageAdvanced):
 class PackagesFilter(Filter):
     """
     Схема для фильтрации GET-запросов по посылкам.
-    Не содержит лишних полей, только те, по которым разрешена фильтрация.
     """
 
     type_id: Optional[PackageType] = Field(
@@ -111,6 +126,10 @@ class PackagesFilter(Filter):
 
 
 class DeliveryStatsOut(BaseModel):
+    """
+    Схема для ответа API с общей статистикой по доставкам.
+    """
+
     type_id: int = Field(
         ...,
         description="ID типа посылки: 1=одежда, 2=электроника, 3=разное",

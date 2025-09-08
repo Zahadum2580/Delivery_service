@@ -28,14 +28,13 @@ class Settings(BaseSettings):
     REDIS_HOST: str = "redis"
     REDIS_PORT: int = 6379
 
-    # Mongo
+    # MongoDB
     MONGO_HOST: str = "mongo"
     MONGO_PORT: int = 27017
 
     # внешние AP
     CBR_DAILY_URL: str = "https://www.cbr-xml-daily.ru/daily_json.js"
 
-    # ----- computed values -----
     @property
     def ASYNC_DATABASE_URL(self) -> str:
         return (
@@ -45,7 +44,7 @@ class Settings(BaseSettings):
 
     @property
     def SYNC_DATABASE_URL(self) -> str:
-        # нужен для Alembic (sync driver)
+        # на перспективу когда захотим притащить alembic
         return (
             f"mysql+pymysql://{self.MYSQL_USER}:{self.MYSQL_PASSWORD}"
             f"@{self.MYSQL_HOST}:{self.MYSQL_PORT}/{self.MYSQL_DB}?charset=utf8mb4"
