@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi_pagination import add_pagination
 
 from app.api import api_router
+from app.core.exceptions import register_exception_handlers
 from app.core.logging import LoggingMiddleware
 from app.workers.producer import Producer
 
@@ -29,3 +30,6 @@ app.include_router(api_router)
 
 # Подключаем пагинацию
 add_pagination(app)
+
+# подключаем обработчики исключений
+register_exception_handlers(app)

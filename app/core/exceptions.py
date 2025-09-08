@@ -1,8 +1,10 @@
 import logging
 
-from fastapi import HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 logger = logging.getLogger(__name__)
 
@@ -39,3 +41,13 @@ async def http_exception_handler(request: Request, exc: HTTPException):
         status_code=exc.status_code,
         content={"detail": exc.detail},
     )
+
+
+def register_exception_handlers(app: FastAPI) -> None:
+    handlers = {
+        RequestValidationError: validation_exception_handler,
+        StarletteHTTPException: http_exception_handler,
+        Exception: global_exception_handler,
+    }
+    for exc_class, handler in handlers.items():
+        app.add_exception_handler(exc_class, handler)

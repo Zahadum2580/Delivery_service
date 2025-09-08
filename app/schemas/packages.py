@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Optional
 
 from fastapi_filter.contrib.sqlalchemy import Filter
-from pydantic import BaseModel, Field, NonNegativeFloat, field_validator
+from pydantic import BaseModel, ConfigDict, Field, NonNegativeFloat, field_validator
 
 from app.core.utils import msk_now, round_2, round_3
 from app.models.packages import Package
@@ -91,8 +91,7 @@ class PackageAdvanced(PackageIn):
             return None
         return round_2(v)
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class PackageOut(PackageAdvanced):
@@ -145,3 +144,12 @@ class DeliveryStatsOut(BaseModel):
         description="Общая стоимость доставки",
         json_schema_extra={"example": 1234.56},
     )
+
+    @field_validator("total_delivery_cost", mode="before")
+    @classmethod
+    def round_total_delivery_cost(cls, v: Optional[float]):
+        if v is None:
+            return None
+        return round_2(v)
+
+    model_config = ConfigDict(from_attributes=True)
