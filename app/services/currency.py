@@ -1,5 +1,5 @@
-import aioredis
 import httpx
+import redis.asyncio as redis
 
 from app.core.config import settings
 
@@ -9,30 +9,33 @@ CACHE_TTL = 3600
 
 class CurrencyService:
     def __init__(self):
-        self.redis = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
+        # Создаём клиент Redis
+        self.redis_url = settings.REDIS_URL
 
     async def get_usd_to_rub_rate(self) -> float | None:
         """
         Возвращает курс USD->RUB.
         Если не удалось получить курс из кэша и с ЦБ — возвращает None.
         """
-        # Попробуем получить из кэша:
-        cached = await self.redis.get(CACHE_KEY)
-        if cached:
-            return float(cached)
+        # Используем async context manager для безопасного подключения
+        async with redis.from_url(self.redis_url, decode_responses=True) as client:
+            # Попробуем получить из кэша
+            cached = await client.get(CACHE_KEY)
+            if cached:
+                return float(cached)
 
-        # Попробуем получить с ЦБ:
-        try:
-            async with httpx.AsyncClient() as client:
-                resp = await client.get(settings.CBR_DAILY_URL, timeout=10.0)
-                resp.raise_for_status()
-                data = resp.json()
-                usd_rate = data["Valute"]["USD"]["Value"]
-        except Exception:
-            usd_rate = None  # если не удалось получить
+            # Попробуем получить с ЦБ
+            try:
+                async with httpx.AsyncClient() as http_client:
+                    resp = await http_client.get(settings.CBR_DAILY_URL, timeout=10.0)
+                    resp.raise_for_status()
+                    data = resp.json()
+                    usd_rate = data["Valute"]["USD"]["Value"]
+            except Exception:
+                usd_rate = None  # если не удалось получить
 
-        # Сохраняем в Redis, если есть:
-        if usd_rate is not None:
-            await self.redis.set(CACHE_KEY, usd_rate, ex=CACHE_TTL)
+            # Сохраняем в Redis, если есть
+            if usd_rate is not None:
+                await client.set(CACHE_KEY, usd_rate, ex=CACHE_TTL)
 
-        return usd_rate
+            return usd_rate

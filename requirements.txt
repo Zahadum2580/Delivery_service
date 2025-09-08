@@ -1,4 +1,3 @@
-aioredis
 redis
 aio_pika
 fastapi
